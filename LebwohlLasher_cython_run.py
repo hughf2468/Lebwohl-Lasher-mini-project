@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step
+from LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step, call_energy
 
 #=======================================================================
 def initdat(nmax):
@@ -164,22 +164,22 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
 #     en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
 #     return en
 #=======================================================================
-def all_energy(arr,nmax):
-    """
-    Arguments:
-	  arr (float(nmax,nmax)) = array that contains lattice data;
-      nmax (int) = side length of square lattice.
-    Description:
-      Function to compute the energy of the entire lattice. Output
-      is in reduced units (U/epsilon).
-	Returns:
-	  enall (float) = reduced energy of lattice.
-    """
-    enall = 0.0
-    for i in range(nmax):
-        for j in range(nmax):
-            enall += cone_energy(arr,i,j,nmax)
-    return enall
+# def all_energy(arr,nmax):
+#     """
+#     Arguments:
+# 	  arr (float(nmax,nmax)) = array that contains lattice data;
+#       nmax (int) = side length of square lattice.
+#     Description:
+#       Function to compute the energy of the entire lattice. Output
+#       is in reduced units (U/epsilon).
+# 	Returns:
+# 	  enall (float) = reduced energy of lattice.
+#     """
+#     enall = 0.0
+#     for i in range(nmax):
+#         for j in range(nmax):
+#             enall += cone_energy(arr,i,j,nmax)
+#     return enall
 #=======================================================================
 # def get_order(arr,nmax):
 #     """
@@ -278,7 +278,7 @@ def main(program, nsteps, nmax, temp, pflag):
     ratio = np.zeros(nsteps+1,dtype=np.float64)
     order = np.zeros(nsteps+1,dtype=np.float64)
     # Set initial values in arrays
-    energy[0] = all_energy(lattice,nmax)
+    energy[0] = call_energy(lattice,nmax)
     ratio[0] = 0.5 # ideal value
     order[0] = cget_order(lattice,nmax)
 
@@ -286,7 +286,7 @@ def main(program, nsteps, nmax, temp, pflag):
     initial = time.time()
     for it in range(1,nsteps+1):
         ratio[it] = cMC_step(lattice,temp,nmax)
-        energy[it] = all_energy(lattice,nmax)
+        energy[it] = call_energy(lattice,nmax)
         order[it] = cget_order(lattice,nmax)
     final = time.time()
     runtime = final-initial

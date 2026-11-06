@@ -85,3 +85,11 @@ def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
                 else:
                     arr[ix,iy] -= ang
     return accept / <double>(nmax*nmax)
+
+def call_energy(double[:, ::1] arr, Py_ssize_t nmax):
+    cdef Py_ssize_t i, j
+    cdef double enall=0.0
+    for i in range(nmax):
+        for j in range(nmax):
+            enall += cone_energy(arr,i,j,nmax)
+    return enall
