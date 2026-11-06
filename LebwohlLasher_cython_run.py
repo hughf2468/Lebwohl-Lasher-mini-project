@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from LebwohlLasher_cython_funcs import cone_energy
+from LebwohlLasher_cython_funcs import cone_energy, cget_order
 
 #=======================================================================
 def initdat(nmax):
@@ -181,33 +181,33 @@ def all_energy(arr,nmax):
             enall += cone_energy(arr,i,j,nmax)
     return enall
 #=======================================================================
-def get_order(arr,nmax):
-    """
-    Arguments:
-	  arr (float(nmax,nmax)) = array that contains lattice data;
-      nmax (int) = side length of square lattice.
-    Description:
-      Function to calculate the order parameter of a lattice
-      using the Q tensor approach, as in equation (3) of the
-      project notes.  Function returns S_lattice = max(eigenvalues(Q_ab)).
-	Returns:
-	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
-    """
-    Qab = np.zeros((3,3))
-    delta = np.eye(3,3)
-    #
-    # Generate a 3D unit vector for each cell (i,j) and
-    # put it in a (3,i,j) array.
-    #
-    lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
-    for a in range(3):
-        for b in range(3):
-            for i in range(nmax):
-                for j in range(nmax):
-                    Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
-    Qab = Qab/(2*nmax*nmax)
-    eigenvalues,eigenvectors = np.linalg.eig(Qab)
-    return eigenvalues.max()
+# def get_order(arr,nmax):
+#     """
+#     Arguments:
+# 	  arr (float(nmax,nmax)) = array that contains lattice data;
+#       nmax (int) = side length of square lattice.
+#     Description:
+#       Function to calculate the order parameter of a lattice
+#       using the Q tensor approach, as in equation (3) of the
+#       project notes.  Function returns S_lattice = max(eigenvalues(Q_ab)).
+# 	Returns:
+# 	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
+#     """
+#     Qab = np.zeros((3,3))
+#     delta = np.eye(3,3)
+#     #
+#     # Generate a 3D unit vector for each cell (i,j) and
+#     # put it in a (3,i,j) array.
+#     #
+#     lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
+#     for a in range(3):
+#         for b in range(3):
+#             for i in range(nmax):
+#                 for j in range(nmax):
+#                     Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
+#     Qab = Qab/(2*nmax*nmax)
+#     eigenvalues,eigenvectors = np.linalg.eig(Qab)
+#     return eigenvalues.max()
 #=======================================================================
 def MC_step(arr,Ts,nmax):
     """
@@ -280,14 +280,14 @@ def main(program, nsteps, nmax, temp, pflag):
     # Set initial values in arrays
     energy[0] = all_energy(lattice,nmax)
     ratio[0] = 0.5 # ideal value
-    order[0] = get_order(lattice,nmax)
+    order[0] = cget_order(lattice,nmax)
 
     # Begin doing and timing some MC steps.
     initial = time.time()
     for it in range(1,nsteps+1):
         ratio[it] = MC_step(lattice,temp,nmax)
         energy[it] = all_energy(lattice,nmax)
-        order[it] = get_order(lattice,nmax)
+        order[it] = cget_order(lattice,nmax)
     final = time.time()
     runtime = final-initial
     
