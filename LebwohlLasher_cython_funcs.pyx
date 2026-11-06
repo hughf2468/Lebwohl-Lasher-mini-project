@@ -55,4 +55,33 @@ def cget_order(arr, Py_ssize_t nmax):
     eigenvalues,eigenvectors = np.linalg.eig(Qab_np)
     return eigenvalues.max()
     
+def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
+    cdef double scale = 0.1+Ts
+    cdef Py_ssize_t accept = 0
+    cdef Py_ssize_t i, j, ix, ij
+    cdef double ang, en0, en1
+
+    cdef Py_ssize_t[:, ::1] xran = np.random.randint(0, nmax, size=(nmax, nmax), dtype=np.intp)
+    cdef Py_ssize_t[:, ::1] yran = np.random.randint(0, nmax, size=(nmax, nmax), dtype=np.intp)
+    cdef double[:, ::1] aran = np.random.normal(scale=scale, size=(nmax, nmax))
     
+    for i in range(nmax):
+        for j in range(nmax):
+            ix = xran[i, j]
+            iy = yran[i, j]
+            ang = aran[i, j]
+
+            en0 = cone_energy(arr, ix, iy, nmax)
+            arr[ix,iy] +=ang
+
+            en1 = cone_energy(arr, ix, iy, nmax)
+            if en1<=en0:
+                accept += 1
+            else:
+                boltz = np.exp( -(en1 - en0) / Ts )
+
+                if boltz >= np.random.uniform(0.0,1.0):
+                    accept += 1
+                else:
+                    arr[ix,iy] -= ang
+    return accept / <double>(nmax*nmax)
