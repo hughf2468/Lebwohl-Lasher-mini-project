@@ -82,3 +82,12 @@ def test_MC_step(arr, Ts):
     accept_py = MC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr)
     accept_cy = cMC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr, nmax)
     assert np.isclose(accept_cy, accept_py, rtol=rtol, atol=atol)
+
+
+#function to check that the measuring functions do not modify the lattice.
+@pytest.mark.parametrize("arr", arrs)
+def static_input(arr):
+    init_arr = arr.copy()
+    call_energy(arr, nmax)
+    cget_order(arr, nmax)
+    assert np.array_equal(arr, init_arr)
