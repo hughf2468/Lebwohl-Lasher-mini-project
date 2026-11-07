@@ -9,10 +9,10 @@ nmax = 50
 arr = lattice_gen(nmax)
 
 def test_one_energy():
-    ix = np.random.randint(0, nmax)
-    iy = np.random.randint(0, nmax)
-    en_orig = one_energy(arr, ix, iy, nmax)
-    assert np.isclose(cone_energy(arr, ix, iy, nmax), en_orig)
+    for ix in range(nmax):
+        for iy in range(nmax):
+            en_orig = one_energy(arr, ix, iy, nmax)
+            assert np.isclose(cone_energy(arr, ix, iy, nmax), en_orig)
 
 
 def test_all_energy():
