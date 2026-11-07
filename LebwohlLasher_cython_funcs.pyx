@@ -55,22 +55,13 @@ def cget_order(arr, Py_ssize_t nmax):
     Qab_np = np.asarray(Qab) / (2*nmax*nmax)
     eigenvalues,eigenvectors = np.linalg.eig(Qab_np)
     return eigenvalues.max()
-    
-def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
-    cdef double scale = 0.1+Ts
-    cdef Py_ssize_t accept = 0
-    cdef Py_ssize_t i, j, ix, ij
-    cdef double ang, en0, en1
 
-    cdef Py_ssize_t[:, ::1] xran = np.random.randint(0, nmax, size=(nmax, nmax), dtype=np.intp)
-    cdef Py_ssize_t[:, ::1] yran = np.random.randint(0, nmax, size=(nmax, nmax), dtype=np.intp)
-    cdef double[:, ::1] aran = np.random.normal(scale=scale, size=(nmax, nmax))
-    #Generates an array of all required random numbers in advance of iterating through the grid.
-    #This removes the for loop dependency on numpy and we can remove the gil.
-    cdef double[:, ::1] ran_arr = np.random.random_sample((nmax, nmax))
+cpdef inline Py_ssize_t cMC_step_loop(double[:, ::1] arr, double Ts, Py_ssize_t[:, ::1] xran, Py_ssize_t[:, ::1] yran, double[:, ::1] aran, double[:, ::1] ran_arr, Py_ssize_t nmax) nogil:
+    cdef Py_ssize_t i, j, ix, iy
+    cdef double ang, en0, en1, boltz
+    cdef Py_ssize_t accept = 0
     
-    with nogil:
-        for i in range(nmax):
+    for i in range(nmax):
             for j in range(nmax):
                 ix = xran[i, j]
                 iy = yran[i, j]
@@ -89,6 +80,23 @@ def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
                         accept += 1
                     else:
                         arr[ix,iy] -= ang
+    
+    return accept
+
+def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
+    cdef double scale = 0.1+Ts
+    cdef Py_ssize_t accept
+
+    cdef Py_ssize_t[:, ::1] xran = np.random.randint(0, nmax, size=(nmax, nmax), dtype=np.intp)
+    cdef Py_ssize_t[:, ::1] yran = np.random.randint(0, nmax, size=(nmax, nmax), dtype=np.intp)
+    cdef double[:, ::1] aran = np.random.normal(scale=scale, size=(nmax, nmax))
+    #Generates an array of all required random numbers in advance of iterating through the grid.
+    #This removes the for loop dependency on numpy and we can remove the gil.
+    cdef double[:, ::1] ran_arr = np.random.random_sample((nmax, nmax))
+    
+    with nogil:
+        accept = cMC_step_loop(arr, Ts, xran, yran, aran, ran_arr, nmax)
+        
     return accept / <double>(nmax*nmax)
 
 def call_energy(double[:, ::1] arr, Py_ssize_t nmax):
