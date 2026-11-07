@@ -163,8 +163,9 @@ def one_energy(arr,ix,iy,nmax):
     return en
 
 #=======================================================================
-def all_energy(arr,nmax):
-    #en holds the array of all of the energies in the lattice.
+#Must be separated out so it can be called by MC_step.
+def energy_arr(arr):
+    #enarr holds the array of all of the energies in the lattice.
     enarr = 0.0
     #Iterating over axis and neighbour each side.
     for xydirection in (0,1):
@@ -175,7 +176,10 @@ def all_energy(arr,nmax):
             ang = arr-arr_shift
             #Calculate energies for the shifted lattice.
             enarr += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    return enarr.sum()
+    return enarr
+
+def all_energy(arr,nmax):
+    return energy_arr(arr).sum()
 
 
 
@@ -238,52 +242,91 @@ def get_order(arr, nmax):
 
 
 #=======================================================================
-def MC_step(arr,Ts,nmax):
-    """
-    Arguments:
-	  arr (float(nmax,nmax)) = array that contains lattice data;
-	  Ts (float) = reduced temperature (range 0 to 2);
-      nmax (int) = side length of square lattice.
-    Description:
-      Function to perform one MC step, which consists of an average
-      of 1 attempted change per lattice site.  Working with reduced
-      temperature Ts = kT/epsilon.  Function returns the acceptance
-      ratio for information.  This is the fraction of attempted changes
-      that are successful.  Generally aim to keep this around 0.5 for
-      efficient simulation.
-	Returns:
-	  accept/(nmax**2) (float) = acceptance ratio for current MCS.
-    """
-    #
-    # Pre-compute some random numbers.  This is faster than
-    # using lots of individual calls.  "scale" sets the width
-    # of the distribution for the angle changes - increases
-    # with temperature.
+# def MC_step(arr,Ts,nmax):
+#     """
+#     Arguments:
+# 	  arr (float(nmax,nmax)) = array that contains lattice data;
+# 	  Ts (float) = reduced temperature (range 0 to 2);
+#       nmax (int) = side length of square lattice.
+#     Description:
+#       Function to perform one MC step, which consists of an average
+#       of 1 attempted change per lattice site.  Working with reduced
+#       temperature Ts = kT/epsilon.  Function returns the acceptance
+#       ratio for information.  This is the fraction of attempted changes
+#       that are successful.  Generally aim to keep this around 0.5 for
+#       efficient simulation.
+# 	Returns:
+# 	  accept/(nmax**2) (float) = acceptance ratio for current MCS.
+#     """
+#     #
+#     # Pre-compute some random numbers.  This is faster than
+#     # using lots of individual calls.  "scale" sets the width
+#     # of the distribution for the angle changes - increases
+#     # with temperature.
+#     scale=0.1+Ts
+#     accept = 0
+#     xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
+#     yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
+#     aran = np.random.normal(scale=scale, size=(nmax,nmax))
+#     for i in range(nmax):
+#         for j in range(nmax):
+#             ix = xran[i,j]
+#             iy = yran[i,j]
+#             ang = aran[i,j]
+#             en0 = one_energy(arr,ix,iy,nmax)
+#             arr[ix,iy] += ang
+#             en1 = one_energy(arr,ix,iy,nmax)
+#             if en1<=en0:
+#                 accept += 1
+#             else:
+#             # Now apply the Monte Carlo test - compare
+#             # exp( -(E_new - E_old) / T* ) >= rand(0,1)
+#                 boltz = np.exp( -(en1 - en0) / Ts )
+
+#                 if boltz >= np.random.uniform(0.0,1.0):
+#                     accept += 1
+#                 else:
+#                     arr[ix,iy] -= ang
+#     return accept/(nmax*nmax)
+
+#This function divides the array like a "chequerboard". It is updated "black" then "white".
+#This allows for the whole array to be updates in 2 steps without nearest neighbour conflicts.
+def MC_step(arr, Ts, nmax):
+    #Define scale and accept as before.
     scale=0.1+Ts
     accept = 0
-    xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    aran = np.random.normal(scale=scale, size=(nmax,nmax))
-    for i in range(nmax):
-        for j in range(nmax):
-            ix = xran[i,j]
-            iy = yran[i,j]
-            ang = aran[i,j]
-            en0 = one_energy(arr,ix,iy,nmax)
-            arr[ix,iy] += ang
-            en1 = one_energy(arr,ix,iy,nmax)
-            if en1<=en0:
-                accept += 1
-            else:
-            # Now apply the Monte Carlo test - compare
-            # exp( -(E_new - E_old) / T* ) >= rand(0,1)
-                boltz = np.exp( -(en1 - en0) / Ts )
 
-                if boltz >= np.random.uniform(0.0,1.0):
-                    accept += 1
-                else:
-                    arr[ix,iy] -= ang
+    #Create two nmax*nmax matrices, containing each elements row and column index respectively.
+    row_id, column_id = np.indices((nmax,nmax))
+
+    for blackorwhite in (0,1):
+        #use row and column id to create chequerboard pattern on an nmax*nmax array.
+        #Even numbers are "black", odd numbers are "white".
+        chequerboard = (row_id+column_id)%2
+        #Convert the 1s and 0s to trues and falses.
+        chequerbool = (chequerboard == blackorwhite)
+        #compute some random angle changes for every point on the lattice.
+        aran = np.random.normal(scale=scale, size=(nmax,nmax))
+        #Update the lattice, either arr+aran or unchanged depending on current colour.
+        new_arr = np.where(chequerbool, arr+aran, arr)
+        #Calculate energy change array for the whole lattice.
+        en_change = energy_arr(new_arr) - energy_arr(arr)
+        #Always accept a decrease in energy.
+        dec_en = (en_change<=0)
+        #Apply the monte-carlo test on the rest of them.
+        #first, generate an array of random numbers between 0 and 1.
+        compare_num = np.random.uniform(0.0,1.0,(nmax,nmax))
+        boltz=np.exp(-en_change/Ts)
+        approved_in_en = (boltz >= compare_num)
+        #Transitions are only accepted on the right colour, and if either decrease or approved increase in energy.
+        accepted_pos = chequerbool & (dec_en | approved_in_en)
+        #Change lattice at accepted positions only.
+        arr[accepted_pos] = new_arr[accepted_pos]
+        accept += accepted_pos.sum()
     return accept/(nmax*nmax)
+
+
+
 #=======================================================================
 def main(program, nsteps, nmax, temp, pflag):
     """
