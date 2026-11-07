@@ -1,5 +1,5 @@
-from LebwohlLasher import one_energy, all_energy, get_order, MC_step
-from LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step, call_energy
+from LebwohlLasher import one_energy, all_energy, get_order
+from LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
 import numpy as np
 import pytest
 
@@ -46,3 +46,39 @@ def test_get_order(arr):
     op_orig = get_order(arr, nmax)
     assert np.isclose(cget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
 
+#Function equivalent to the update loop in the original MC_step, without random number generators.
+def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
+    accept = 0
+    for i in range(nmax):
+        for j in range(nmax):
+            ix = xran[i, j]
+            iy = yran[i, j]
+            ang = aran[i, j]
+            en0 = one_energy(arr, ix, iy,nmax)
+            arr[ix,iy] += ang
+            en1 = one_energy(arr, ix, iy, nmax)
+            if en1<=en0:
+                accept += 1
+            else:
+                boltz = np.exp( -(en1 - en0) / Ts )
+
+                if boltz >= ran_arr[i,j]:
+                    accept += 1
+                else:
+                    arr[ix,iy] -= ang
+    return accept
+
+@pytest.mark.parametrize("arr", arrs)
+def test_MC_step(arr):
+    Ts=0.5
+    scale = 0.1+Ts
+    randMC = np.random.default_rng(100)
+
+    xran = randMC.integers(0, nmax, (nmax,nmax)).astype(np.intp)
+    yran = randMC.integers(0, nmax, (nmax,nmax)).astype(np.intp)
+    aran = randMC.normal(scale=scale, size=(nmax,nmax))
+    ran_arr = randMC.random((nmax,nmax))
+
+    accept_py = MC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr)
+    accept_cy = cMC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr, nmax)
+    assert np.isclose(accept_cy, accept_py, rtol=rtol, atol=atol)

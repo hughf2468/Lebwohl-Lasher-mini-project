@@ -62,24 +62,24 @@ cpdef inline Py_ssize_t cMC_step_loop(double[:, ::1] arr, double Ts, Py_ssize_t[
     cdef Py_ssize_t accept = 0
     
     for i in range(nmax):
-            for j in range(nmax):
-                ix = xran[i, j]
-                iy = yran[i, j]
-                ang = aran[i, j]
+        for j in range(nmax):
+            ix = xran[i, j]
+            iy = yran[i, j]
+            ang = aran[i, j]
 
-                en0 = cone_energy(arr, ix, iy, nmax)
-                arr[ix,iy] +=ang
+            en0 = cone_energy(arr, ix, iy, nmax)
+            arr[ix,iy] +=ang
 
-                en1 = cone_energy(arr, ix, iy, nmax)
-                if en1<=en0:
+            en1 = cone_energy(arr, ix, iy, nmax)
+            if en1<=en0:
+                accept += 1
+            else:
+                boltz = exp( -(en1 - en0) / Ts )
+
+                if boltz >= ran_arr[i,j]:
                     accept += 1
                 else:
-                    boltz = exp( -(en1 - en0) / Ts )
-
-                    if boltz >= ran_arr[i,j]:
-                        accept += 1
-                    else:
-                        arr[ix,iy] -= ang
+                    arr[ix,iy] -= ang
     
     return accept
 
