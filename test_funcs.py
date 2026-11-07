@@ -68,9 +68,9 @@ def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
                     arr[ix,iy] -= ang
     return accept
 
+@pytest.mark.parametrize("Ts", [0.2,0.5,1.5])
 @pytest.mark.parametrize("arr", arrs)
-def test_MC_step(arr):
-    Ts=0.5
+def test_MC_step(arr, Ts):
     scale = 0.1+Ts
     randMC = np.random.default_rng(100)
 
