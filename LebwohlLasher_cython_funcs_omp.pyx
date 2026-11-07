@@ -1,5 +1,7 @@
 #cython: profile=True
 from libc.math cimport cos, exp
+from cython.parallel cimport prange
+cimport cython
 import numpy as np
 
 # cpdef defines a pure c function for maximum speed (as cone_energy is called often from other iterative functions).
@@ -33,8 +35,17 @@ cpdef inline double cone_energy(double[:,::1] arr, Py_ssize_t ix, Py_ssize_t iy,
     
     return en
 
-def cget_order(arr, Py_ssize_t nmax):
-    cdef Py_ssize_t i,j,a,b
+#Helper function for cget_order to avoid potential reduction conflicts.
+cdef double qcalc(double[:, :, ::1] lab, double[:, ::1] delta, Py_ssize_t a, Py_ssize_t b, Py_ssize_t nmax) noexcept nogil:
+    cdef Py_ssize_t i, j
+    cdef double Qabab = 0.0
+    for i in range(nmax):
+        for j in range(nmax):
+            Qabab += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
+    return Qabab
+
+def cget_order_omp(arr, Py_ssize_t nmax):
+    cdef Py_ssize_t i,j,a,b,aplusb
     #Using a new variable for the order parameter so that Qab doesn't have to be loaded from ram for every i,j. 
     cdef double Qabab
     cdef double[:, ::1] Qab = np.zeros((3, 3))
@@ -42,15 +53,13 @@ def cget_order(arr, Py_ssize_t nmax):
 
 
     cdef double[:, :, ::1] lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
-
-    with nogil:
-        for a in range(3):
-            for b in range(3):
-                Qabab = 0
-                for i in range(nmax):
-                    for j in range(nmax):
-                        Qabab += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
-                Qab[a, b] = Qabab
+    #cdivision required for parallelisation
+    with cython.cdivision(True):
+        #iterates over aplusb so that more then 3 threads can be utilised.
+        for aplusb in prange(9, nogil=True, num_threads=4):
+            a = aplusb//3
+            b = aplusb%3
+            Qab[a, b] = qcalc(lab, delta, a, b, nmax)
     #Converting from typed memoryview to numpy array.
     Qab_np = np.asarray(Qab) / (2*nmax*nmax)
     eigenvalues,eigenvectors = np.linalg.eig(Qab_np)
@@ -99,11 +108,10 @@ def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
         
     return accept / <double>(nmax*nmax)
 
-def call_energy(double[:, ::1] arr, Py_ssize_t nmax):
+def call_energy_omp(double[:, ::1] arr, Py_ssize_t nmax):
     cdef Py_ssize_t i, j
     cdef double enall=0.0
-    with nogil:
-        for i in range(nmax):
-            for j in range(nmax):
-                enall += cone_energy(arr,i,j,nmax)
+    for i in prange(nmax, nogil=True, num_threads=4):
+        for j in range(nmax):
+            enall += cone_energy(arr,i,j,nmax)
     return enall

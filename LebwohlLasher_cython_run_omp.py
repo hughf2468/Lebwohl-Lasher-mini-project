@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step, call_energy
+from LebwohlLasher_cython_funcs_omp import cone_energy, cget_order_omp, cMC_step, call_energy_omp
 
 #=======================================================================
 def initdat(nmax):
@@ -278,16 +278,16 @@ def main(program, nsteps, nmax, temp, pflag):
     ratio = np.zeros(nsteps+1,dtype=np.float64)
     order = np.zeros(nsteps+1,dtype=np.float64)
     # Set initial values in arrays
-    energy[0] = call_energy(lattice,nmax)
+    energy[0] = call_energy_omp(lattice,nmax)
     ratio[0] = 0.5 # ideal value
-    order[0] = cget_order(lattice,nmax)
+    order[0] = cget_order_omp(lattice,nmax)
 
     # Begin doing and timing some MC steps.
     initial = time.time()
     for it in range(1,nsteps+1):
         ratio[it] = cMC_step(lattice,temp,nmax)
-        energy[it] = call_energy(lattice,nmax)
-        order[it] = cget_order(lattice,nmax)
+        energy[it] = call_energy_omp(lattice,nmax)
+        order[it] = cget_order_omp(lattice,nmax)
     final = time.time()
     runtime = final-initial
     
