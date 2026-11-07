@@ -1,5 +1,6 @@
 from LebwohlLasher import one_energy, all_energy, get_order
-from LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
+from cython_serial.LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
+from cython_omp.LebwohlLasher_cython_funcs_omp import cget_order_omp, call_energy_omp
 import numpy as np
 import pytest
 
@@ -40,11 +41,13 @@ def test_one_energy(arr):
 def test_all_energy(arr):
     enall_orig = all_energy(arr, nmax)
     assert np.isclose(call_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(call_energy_omp(arr, nmax),enall_orig, rtol=rtol, atol=atol)
 
 @pytest.mark.parametrize("arr", arrs)
 def test_get_order(arr):
     op_orig = get_order(arr, nmax)
     assert np.isclose(cget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(cget_order_omp(arr, nmax), op_orig, rtol=rtol, atol=atol)
 
 #Function equivalent to the update loop in the original MC_step, without random number generators.
 def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
@@ -86,8 +89,10 @@ def test_MC_step(arr, Ts):
 
 #function to check that the measuring functions do not modify the lattice.
 @pytest.mark.parametrize("arr", arrs)
-def static_input(arr):
+def test_static_input(arr):
     init_arr = arr.copy()
     call_energy(arr, nmax)
     cget_order(arr, nmax)
+    call_energy_omp(arr, nmax)
+    cget_order_omp(arr, nmax)
     assert np.array_equal(arr, init_arr)
