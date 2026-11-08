@@ -341,6 +341,10 @@ def main(program, nsteps, nmax, temp, pflag):
     Returns:
       NULL
     """
+    #Validating that the lattice is even*even, required for wraparound values to be different colours on the chequerboard.
+    if nmax %2:      
+        print("Lattice size must be even.")
+        sys.exit(1)    
     # Create and initialise lattice
     lattice = initdat(nmax)
     # Plot initial frame of lattice
