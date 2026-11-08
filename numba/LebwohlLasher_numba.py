@@ -29,6 +29,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
+from numba import njit
+
 #=======================================================================
 def initdat(nmax):
     """
@@ -128,6 +130,7 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
         print("   {:05d}    {:6.4f} {:12.4f}  {:6.4f} ".format(i,ratio[i],energy[i],order[i]),file=FileOut)
     FileOut.close()
 #=======================================================================
+@njit(cache=True)
 def one_energy(arr,ix,iy,nmax):
     """
     Arguments:
@@ -162,6 +165,7 @@ def one_energy(arr,ix,iy,nmax):
     en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
     return en
 #=======================================================================
+@njit(cache=True)
 def all_energy(arr,nmax):
     """
     Arguments:
@@ -179,6 +183,7 @@ def all_energy(arr,nmax):
             enall += one_energy(arr,i,j,nmax)
     return enall
 #=======================================================================
+@njit(cache=True)
 def get_order(arr,nmax):
     """
     Arguments:
@@ -205,8 +210,10 @@ def get_order(arr,nmax):
                     Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
     Qab = Qab/(2*nmax*nmax)
     eigenvalues,eigenvectors = np.linalg.eig(Qab)
-    return eigenvalues.max()
+    #required to prevent the number compiler failing.
+    return eigenvalues.real.max()
 #=======================================================================
+@njit(cache=True)
 def MC_step(arr,Ts,nmax):
     """
     Arguments:
@@ -230,9 +237,10 @@ def MC_step(arr,Ts,nmax):
     # with temperature.
     scale=0.1+Ts
     accept = 0
-    xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    aran = np.random.normal(scale=scale, size=(nmax,nmax))
+    #Numba only accepts positional arguments for these functions.
+    xran = np.random.randint(0,nmax, size=(nmax,nmax))
+    yran = np.random.randint(0,nmax, size=(nmax,nmax))
+    aran = np.random.normal(0.0, scale, size=(nmax,nmax))
     for i in range(nmax):
         for j in range(nmax):
             ix = xran[i,j]
