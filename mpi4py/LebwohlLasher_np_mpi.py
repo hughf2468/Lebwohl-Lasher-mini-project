@@ -390,7 +390,17 @@ def main(program, nsteps, nmax, temp, pflag):
     Returns:
       NULL
     """
-
+    #Validating that the lattice is even*even, required for wraparound values to be different colours on the chequerboard.
+    
+    if nmax %2:
+        if taskid==0:
+            print("Lattice size must be even.")
+        sys.exit(1)    
+    #Also validates that the size of the lattice is greater than the number of threads.
+    if  nmax < numtasks:
+        if taskid==0:
+            print("Lattice size must be greater than number of MPI tasks.")
+        sys.exit(1)
     #Assign each task a number of rows.
     #Find the minimum number of rows each task will be assigned, as well as rows that don't fit neatly.
     lowest_num_rows, spare_rows = divmod(nmax, numtasks)
