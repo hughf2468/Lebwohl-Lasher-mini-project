@@ -1,8 +1,15 @@
-from LebwohlLasher import one_energy, all_energy, get_order
-from cython_serial.LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
-from cython_omp.LebwohlLasher_cython_funcs_omp import cget_order_omp, call_energy_omp
-from numba_tests.LebwohlLasher_numba import (one_energy as nbone_energy, all_energy as nball_energy, get_order as nbget_order,) 
-from numba_tests.LebwohlLasher_numba_parallel import (one_energy as nbpone_energy, all_energy as nbpall_energy, get_order as nbpget_order,) 
+# from LebwohlLasher import one_energy, all_energy, get_order
+# from cython_serial.LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
+# from cython_omp.LebwohlLasher_cython_funcs_omp import cget_order_omp, call_energy_omp
+# from numba_tests.LebwohlLasher_numba import (one_energy as nbone_energy, all_energy as nball_energy, get_order as nbget_order,) 
+# from numba_tests.LebwohlLasher_numba_parallel import (one_energy as nbpone_energy, all_energy as nbpall_energy, get_order as nbpget_order,) 
+
+import LebwohlLasher as orig
+import cython_serial.LebwohlLasher_cython_funcs as cs
+import cython_omp.LebwohlLasher_cython_funcs_omp as comp
+import numba_tests.LebwohlLasher_numba as nb
+import numba_tests.LebwohlLasher_numba_parallel as nbp
+
 import numpy as np
 import pytest
 
@@ -36,27 +43,27 @@ arrs = lattice_gen()
 def test_one_energy(arr):
     for ix in range(nmax):
         for iy in range(nmax):
-            en_orig = one_energy(arr, ix, iy, nmax)
+            en_orig = orig.one_energy(arr, ix, iy, nmax)
             #cone_energy is the same in parallelised and unparallelised cython.
-            assert np.isclose(cone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
-            assert np.isclose(nbone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
-            assert np.isclose(nbpone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
+            assert np.isclose(cs.cone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
+            assert np.isclose(nb.one_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
+            assert np.isclose(nbp.one_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
 
 @pytest.mark.parametrize("arr", arrs)
 def test_all_energy(arr):
-    enall_orig = all_energy(arr, nmax)
-    assert np.isclose(call_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
-    assert np.isclose(call_energy_omp(arr, nmax),enall_orig, rtol=rtol, atol=atol)
-    assert np.isclose(nball_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
-    assert np.isclose(nbpall_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    enall_orig = orig.all_energy(arr, nmax)
+    assert np.isclose(cs.call_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(comp.call_energy_omp(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nb.all_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nbp.all_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
 
 @pytest.mark.parametrize("arr", arrs)
 def test_get_order(arr):
-    op_orig = get_order(arr, nmax)
-    assert np.isclose(cget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
-    assert np.isclose(cget_order_omp(arr, nmax), op_orig, rtol=rtol, atol=atol)
-    assert np.isclose(nbget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
-    assert np.isclose(nbpget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    op_orig = orig.get_order(arr, nmax)
+    assert np.isclose(cs.cget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(comp.cget_order_omp(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nb.get_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nbp.get_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
 
 #Function equivalent to the update loop in the original MC_step, without random number generators.
 def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
@@ -66,9 +73,9 @@ def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
             ix = xran[i, j]
             iy = yran[i, j]
             ang = aran[i, j]
-            en0 = one_energy(arr, ix, iy,nmax)
+            en0 = orig.one_energy(arr, ix, iy,nmax)
             arr[ix,iy] += ang
-            en1 = one_energy(arr, ix, iy, nmax)
+            en1 = orig.one_energy(arr, ix, iy, nmax)
             if en1<=en0:
                 accept += 1
             else:
@@ -92,7 +99,7 @@ def test_MC_step(arr, Ts):
     ran_arr = randMC.random((nmax,nmax))
 
     accept_py = MC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr)
-    accept_cy = cMC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr, nmax)
+    accept_cy = cs.cMC_step_loop(arr.copy(), Ts, xran, yran, aran, ran_arr, nmax)
     assert np.isclose(accept_cy, accept_py, rtol=rtol, atol=atol)
 
 
@@ -100,8 +107,12 @@ def test_MC_step(arr, Ts):
 @pytest.mark.parametrize("arr", arrs)
 def test_static_input(arr):
     init_arr = arr.copy()
-    call_energy(arr, nmax)
-    cget_order(arr, nmax)
-    call_energy_omp(arr, nmax)
-    cget_order_omp(arr, nmax)
+    cs.call_energy(arr, nmax)
+    cs.cget_order(arr, nmax)
+    comp.call_energy_omp(arr, nmax)
+    comp.cget_order_omp(arr, nmax)
+    nb.all_energy(arr,nmax)
+    nb.get_order(arr,nmax)
+    nbp.all_energy(arr,nmax)
+    nbp.get_order(arr,nmax)
     assert np.array_equal(arr, init_arr)
