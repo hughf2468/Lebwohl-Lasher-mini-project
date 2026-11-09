@@ -1,6 +1,8 @@
 from LebwohlLasher import one_energy, all_energy, get_order
 from cython_serial.LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
 from cython_omp.LebwohlLasher_cython_funcs_omp import cget_order_omp, call_energy_omp
+from numba_tests.LebwohlLasher_numba import (one_energy as nbone_energy, all_energy as nball_energy, get_order as nbget_order,) 
+from numba_tests.LebwohlLasher_numba_parallel import (one_energy as nbpone_energy, all_energy as nbpall_energy, get_order as nbpget_order,) 
 import numpy as np
 import pytest
 
@@ -35,19 +37,26 @@ def test_one_energy(arr):
     for ix in range(nmax):
         for iy in range(nmax):
             en_orig = one_energy(arr, ix, iy, nmax)
+            #cone_energy is the same in parallelised and unparallelised cython.
             assert np.isclose(cone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
+            assert np.isclose(nbone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
+            assert np.isclose(nbpone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
 
 @pytest.mark.parametrize("arr", arrs)
 def test_all_energy(arr):
     enall_orig = all_energy(arr, nmax)
     assert np.isclose(call_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
     assert np.isclose(call_energy_omp(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nball_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nbpall_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
 
 @pytest.mark.parametrize("arr", arrs)
 def test_get_order(arr):
     op_orig = get_order(arr, nmax)
     assert np.isclose(cget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
     assert np.isclose(cget_order_omp(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nbget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(nbpget_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
 
 #Function equivalent to the update loop in the original MC_step, without random number generators.
 def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
