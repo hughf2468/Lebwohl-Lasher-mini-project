@@ -9,6 +9,7 @@ import cython_serial.LebwohlLasher_cython_funcs as cs
 import cython_omp.LebwohlLasher_cython_funcs_omp as comp
 import numba_tests.LebwohlLasher_numba as nb
 import numba_tests.LebwohlLasher_numba_parallel as nbp
+import numpy_vectorization.LebwohlLasher_np as np_funcs
 
 import numpy as np
 import pytest
@@ -48,6 +49,7 @@ def test_one_energy(arr):
             assert np.isclose(cs.cone_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
             assert np.isclose(nb.one_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
             assert np.isclose(nbp.one_energy(arr, ix, iy, nmax), en_orig, rtol=rtol, atol=atol)
+            #The numpy code does without one_energy, as it is vectorized.
 
 @pytest.mark.parametrize("arr", arrs)
 def test_all_energy(arr):
@@ -56,6 +58,8 @@ def test_all_energy(arr):
     assert np.isclose(comp.call_energy_omp(arr, nmax),enall_orig, rtol=rtol, atol=atol)
     assert np.isclose(nb.all_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
     assert np.isclose(nbp.all_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+    assert np.isclose(np_funcs.all_energy(arr, nmax),enall_orig, rtol=rtol, atol=atol)
+
 
 @pytest.mark.parametrize("arr", arrs)
 def test_get_order(arr):
@@ -64,6 +68,7 @@ def test_get_order(arr):
     assert np.isclose(comp.cget_order_omp(arr, nmax), op_orig, rtol=rtol, atol=atol)
     assert np.isclose(nb.get_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
     assert np.isclose(nbp.get_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
+    assert np.isclose(np_funcs.get_order(arr, nmax), op_orig, rtol=rtol, atol=atol)
 
 #Function equivalent to the update loop in the original MC_step, without random number generators.
 def MC_step_loop(arr, Ts, xran, yran, aran, ran_arr):
@@ -115,4 +120,6 @@ def test_static_input(arr):
     nb.get_order(arr,nmax)
     nbp.all_energy(arr,nmax)
     nbp.get_order(arr,nmax)
+    np_funcs.all_energy(arr,nmax)
+    np_funcs.get_order(arr,nmax)
     assert np.array_equal(arr, init_arr)
