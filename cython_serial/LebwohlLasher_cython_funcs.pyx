@@ -35,7 +35,7 @@ cpdef inline double cone_energy(double[:,::1] arr, Py_ssize_t ix, Py_ssize_t iy,
 
 def cget_order(arr, Py_ssize_t nmax):
     cdef Py_ssize_t i,j,a,b
-    #Using a new variable for the order parameter so that Qab doesn't have to be loaded from ram for every i,j. 
+    #Using a new variable for the order tensor component so that Qab doesn't have to be loaded from ram for every i,j. 
     cdef double Qabab
     cdef double[:, ::1] Qab = np.zeros((3, 3))
     cdef double[:, ::1] delta = np.eye(3, 3)
