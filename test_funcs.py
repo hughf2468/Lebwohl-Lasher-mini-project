@@ -1,8 +1,3 @@
-# from LebwohlLasher import one_energy, all_energy, get_order
-# from cython_serial.LebwohlLasher_cython_funcs import cone_energy, cget_order, cMC_step_loop, call_energy
-# from cython_omp.LebwohlLasher_cython_funcs_omp import cget_order_omp, call_energy_omp
-# from numba_tests.LebwohlLasher_numba import (one_energy as nbone_energy, all_energy as nball_energy, get_order as nbget_order,) 
-# from numba_tests.LebwohlLasher_numba_parallel import (one_energy as nbpone_energy, all_energy as nbpall_energy, get_order as nbpget_order,) 
 
 import LebwohlLasher as orig
 import cython_serial.LebwohlLasher_cython_funcs as cs

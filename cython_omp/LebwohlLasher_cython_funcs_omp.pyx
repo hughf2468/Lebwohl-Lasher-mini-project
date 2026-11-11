@@ -1,4 +1,4 @@
-#cython: profile=True
+#cython: profile=False
 from libc.math cimport cos, exp
 from cython.parallel cimport prange
 cimport cython
@@ -47,7 +47,7 @@ cdef double qcalc(double[:, :, ::1] lab, double[:, ::1] delta, Py_ssize_t a, Py_
 def cget_order_omp(arr, Py_ssize_t nmax):
     cdef Py_ssize_t i,j,a,b,aplusb
     #Using a new variable for the order parameter so that Qab doesn't have to be loaded from ram for every i,j. 
-    cdef double Qabab
+
     cdef double[:, ::1] Qab = np.zeros((3, 3))
     cdef double[:, ::1] delta = np.eye(3, 3)
 
@@ -56,7 +56,7 @@ def cget_order_omp(arr, Py_ssize_t nmax):
     #cdivision required for parallelisation
     with cython.cdivision(True):
         #iterates over aplusb so that more then 3 threads can be utilised.
-        for aplusb in prange(9, nogil=True, num_threads=4):
+        for aplusb in prange(9, nogil=True):
             a = aplusb//3
             b = aplusb%3
             Qab[a, b] = qcalc(lab, delta, a, b, nmax)
@@ -111,7 +111,7 @@ def cMC_step(double[:, ::1] arr, double Ts, Py_ssize_t nmax):
 def call_energy_omp(double[:, ::1] arr, Py_ssize_t nmax):
     cdef Py_ssize_t i, j
     cdef double enall=0.0
-    for i in prange(nmax, nogil=True, num_threads=4):
+    for i in prange(nmax, nogil=True):
         for j in range(nmax):
             enall += cone_energy(arr,i,j,nmax)
     return enall

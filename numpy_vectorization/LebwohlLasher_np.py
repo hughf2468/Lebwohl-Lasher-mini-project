@@ -22,6 +22,12 @@ domains alternate between old data and new data.
 SH 16-Oct-23
 """
 
+#Limit NumPy to a single thread to avoid unpredictable behaviour.
+import os
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+
 import sys
 import time
 import datetime

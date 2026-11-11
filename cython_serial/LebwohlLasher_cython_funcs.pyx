@@ -1,4 +1,4 @@
-#cython: profile=True
+#cython: profile=False
 from libc.math cimport cos, exp
 import numpy as np
 
